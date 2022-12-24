@@ -1,0 +1,29 @@
+{
+    "files.associations": {
+        "wifi_sta_cfg_dto.h": "c",
+        "wifi_sta_cfg.h": "c",
+        "cnet_app.h": "c",
+        "eth_cfg_dto.h": "c",
+        "eth.h": "c",
+        "wifi_ap.h": "c",
+        "wifi_sta.h": "c",
+        "ntp.h": "c",
+        "http_request_cfg_dto.h": "c",
+        "dto_helpers.h": "c",
+        "http_request_cfg.h": "c",
+        "http_request_header.h": "c",
+        "mqtt.h": "c",
+        "http_server.h": "c",
+        "inttypes.h": "c",
+        "ip_cfg.h": "c",
+        "freertos.h": "c",
+        "task.h": "c",
+        "event_groups.h": "c",
+        "queue.h": "c",
+        "cnet_config.h": "c",
+        "cnet_error.h": "c",
+        "cjson.h": "c",
+        "cnet_event_interface.h": "c",
+        "stat.h": "c"
+    }
+}
