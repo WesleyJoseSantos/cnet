@@ -12,36 +12,39 @@
 #ifndef __CNET_APP__H__
 #define __CNET_APP__H__
 
-#include "interfaces/eth/include/eth.h"
-#include "interfaces/wifi/include/wifi_ap.h"
-#include "interfaces/wifi/include/wifi_sta.h"
-#include "interfaces/http_server/include/http_server.h"
-#include "interfaces/http_request/include/http_request.h"
-#include "interfaces/ntp/include/ntp.h"
-#include "interfaces/mqtt/include/mqtt.h"
+#include "eth.h"
+#include "wifi_ap.h"
+#include "wifi_sta.h"
+#include "http_server.h"
+#include "http_request.h"
+#include "ntp.h"
+#include "mqtt.h"
+#include "cnet_config.h"
 
-#ifndef BaseType_t
-#warning "freeRTOS library BaseType_t definition is missing
-#define BaseType_t int
-#endif
+#ifdef CNET_CONFIG_OS_WINDOWS
+#include "FreeRTOS.h"
+#include "event_groups.h"
+#include "queue.h"
+#include "task.h"
+#endif // CNET_CONFIG_OS_WINDOWS
 
 /**
- * @brief CNET application available interfaces
+ * @brief CNET application available channels
  *
  */
-typedef enum cnet_app_interface
+typedef enum cnet_app_channel
 {
-    CNET_APP_ETHERNET,     ///!< Ethernet network interface
-    CNET_APP_WIFI_AP,      ///!< WiFi Access Point network interface
-    CNET_APP_WIFI_STA,     ///!< WiFi Station network interface
-    CNET_APP_WIFI_SCAN,    ///!< WiFi Scanner interface
-    CNET_APP_HTTP_SERVER,  ///!< HTTP Server interface
-    CNET_APP_HTTP_REQUEST, ///!< HTTP Request interface
-    CNET_APP_NTP,          ///!< NTP interface
-    CNET_APP_MQTT,         ///!< MQTT interface
-    CNET_APP_PING,         ///!< Ping protocol interface
-    CNET_APP_OTA,          ///!< OTA interface
-} cnet_app_interface_t;
+    CNET_APP_ETHERNET,     ///!< Ethernet network channel
+    CNET_APP_WIFI_AP,      ///!< WiFi Access Point network channel
+    CNET_APP_WIFI_STA,     ///!< WiFi Station network channel
+    CNET_APP_WIFI_SCAN,    ///!< WiFi Scanner channel
+    CNET_APP_HTTP_SERVER,  ///!< HTTP Server channel
+    CNET_APP_HTTP_REQUEST, ///!< HTTP Request channel
+    CNET_APP_NTP,          ///!< NTP channel
+    CNET_APP_MQTT,         ///!< MQTT channel
+    CNET_APP_PING,         ///!< Ping protocol channel
+    CNET_APP_OTA,          ///!< OTA channel
+} cnet_app_channel_t;
 
 /**
  * @brief CNET application available message IDs
@@ -49,10 +52,10 @@ typedef enum cnet_app_interface
  */
 typedef enum cnet_app_msg_id
 {
-    CNET_APP_MSG_ID_START,      ///!< Request to start an interface
-    CNET_APP_MSG_ID_STOP,       ///!< Request to stop an interface
-    CNET_APP_MSG_ID_GET_INFO,   ///!< Request to get interface information
-    CNET_APP_MSG_ID_GET_STATUS, ///!< Request to get interface status
+    CNET_APP_MSG_ID_START,      ///!< Request to start an channel
+    CNET_APP_MSG_ID_STOP,       ///!< Request to stop an channel
+    CNET_APP_MSG_ID_GET_INFO,   ///!< Request to get channel information
+    CNET_APP_MSG_ID_GET_STATUS, ///!< Request to get channel status
     CNET_APP_RESET_SETTINGS,    ///!< Request to reset application settings
     CNET_APP_SAVE_SETTINGS,     ///!< Request to save application settings
     CNET_APP_LOAD_SETTINGS,     ///!< Request to load application settings
@@ -92,9 +95,9 @@ typedef union cnet_app_msg_data
 typedef struct cnet_app_queue_msg
 {
     uint8_t id;               ///!< ID number that identify message objective
-    uint8_t interface;        ///!< Interface number that identify who interface will consume the message
+    uint8_t channel;          ///!< Interface number that identify who channel will consume the message
     uint32_t timeout;         ///!< Timeout of message processing
-    cnet_app_msg_data_t data; ///!< Data with parameters to be used by selected interface
+    cnet_app_msg_data_t data; ///!< Data with parameters to be used by selected channel
 } cnet_app_queue_msg_t;
 
 /**
@@ -140,7 +143,7 @@ int cnet_app_get_error_code(void);
 
 /**
  * @brief Set msg event bit to confirm that msg processing is done
- * 
+ *
  * @param msg_id ID of message to be confirmed
  * @return EventBits_t event bits after set
  */

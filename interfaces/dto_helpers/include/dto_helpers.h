@@ -12,7 +12,7 @@
 #ifndef __DTO_HELPERS__H__
 #define __DTO_HELPERS__H__
 
-#include "modules/cJSON/cJSON.h"
+#include "cJSON.h"
 
 #define DTO_FROM_JSON_INIT() memset(ptr, 0, sizeof(*ptr))
 #define DTO_FROM_JSON_NUMBER_DEFAULT(x, val) ptr->x = val

@@ -10,5 +10,8 @@
  */
 
 #include "http_request_cfg.h"
+#include "http_response.h"
 
 int http_request_start(http_request_cfg_t *cfg);
+int http_request_get_resp(http_response_t *resp);
+

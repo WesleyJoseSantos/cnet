@@ -9,7 +9,7 @@
  * 
  */
 
-#include "include/wifi_ap_cfg_dto.h"
+#include "wifi_ap_cfg_dto.h"
 
 cJSON *wifi_ap_cfg_to_json(DTO_TO_JSON_PARAMETERS(wifi_ap_cfg_t))
 {

@@ -18,16 +18,13 @@
 #include "cnet_config.h"
 #include "cnet_error.h"
 
-#include "interfaces/net/include/net_info_dto.h"
-#include "interfaces/net/include/net_status_dto.h"
+#include "net_info_dto.h"
+#include "net_status_dto.h"
+#include "http_response_dto.h"
 
-#include "modules/cJSON/cJSON.h"
-#include "modules/freeRTOS/include/FreeRTOS.h"
-#include "modules/freeRTOS/include/event_groups.h"
-#include "modules/freeRTOS/include/task.h"
-#include "modules/freeRTOS/include/queue.h"
+#include "cJSON.h"
 
-#define GET_EVT_BIT(msg_id) (1 << msg_id);
+#define GET_EVT_BIT(msg_id) (1 << msg_id)
 
 typedef struct cnet_app
 {
@@ -42,11 +39,11 @@ typedef struct cnet_app
 static cnet_app_t this;
 
 static void cnet_app_task(void *pvParameter);
-static int cnet_app_interface_start(cnet_app_interface_t interface, cnet_app_msg_data_t *data);
-static int cnet_app_interface_stop(cnet_app_interface_t interface);
-static int cnet_app_interface_get_info(cnet_app_interface_t interface);
-static int cnet_app_interface_get_status(cnet_app_interface_t interface);
-static int cnet_app_interface_data_to_json(void *data_buf, void *get_data_handler, void *to_json_handler);
+static int cnet_app_channel_start(cnet_app_channel_t channel, cnet_app_msg_data_t *data);
+static int cnet_app_channel_stop(cnet_app_channel_t channel);
+static int cnet_app_channel_get_info(cnet_app_channel_t channel);
+static int cnet_app_channel_get_status(cnet_app_channel_t channel);
+static int cnet_app_data_to_queue_result(void *data_buf, void *get_data_handler(void*), void *to_json_handler(void*));
 static int cnet_app_settings_reset(void);
 static int cnet_app_settings_save(void);
 static int cnet_app_settings_load(void);
@@ -62,7 +59,7 @@ BaseType_t cnet_app_send_msg(cnet_app_queue_msg_t *msg)
 {
     this.err_code = CNET_ERR_OK;
     xEventGroupClearBits(this.event_group, GET_EVT_BIT(msg->id));
-    return xQueueSend(this.queue, msg, portMAX_Delay);
+    return xQueueSend(this.queue, msg, 5000 / portTICK_PERIOD_MS);
 }
 
 void cnet_app_wait_msg_processing(cnet_app_msg_id_t msg_id, uint32_t timeout)
@@ -91,16 +88,16 @@ static void cnet_app_task(void *pvParameter)
             switch (msg.id)
             {
             case CNET_APP_MSG_ID_START:
-                this.err_code = cnet_app_interface_start(msg.interface, &msg.data);
+                this.err_code = cnet_app_channel_start(msg.channel, &msg.data);
                 break;
             case CNET_APP_MSG_ID_STOP:
-                this.err_code = cnet_app_interface_stop(msg.interface, &msg.data);
+                this.err_code = cnet_app_channel_stop(msg.channel, &msg.data);
                 break;
             case CNET_APP_MSG_ID_GET_INFO:
-                this.err_code = cnet_app_interface_get_info(msg.interface);
+                this.err_code = cnet_app_channel_get_info(msg.channel);
                 break;
             case CNET_APP_MSG_ID_GET_STATUS:
-                this.err_code = cnet_app_interface_get_status(msg.interface);
+                this.err_code = cnet_app_channel_get_status(msg.channel);
                 break;
             case CNET_APP_RESET_SETTINGS:
                 this.err_code = cnet_app_settings_reset();
@@ -118,26 +115,31 @@ static void cnet_app_task(void *pvParameter)
     }
 }
 
-static int cnet_app_interface_start(cnet_app_interface_t interface, cnet_app_msg_data_t *data)
+static int cnet_app_channel_start(cnet_app_channel_t channel, cnet_app_msg_data_t *data)
 {
-    switch (interface)
+    switch (channel)
     {
     case CNET_APP_ETHERNET:
-        return eth_start(data->eth);
+        memcpy(&this.settings.eth, data, sizeof(*data));
+        return eth_start(&data->eth);
     case CNET_APP_WIFI_AP:
-        return wifi_ap_start(data->wifi_ap);
+        return wifi_ap_start(&data->wifi_ap);
     case CNET_APP_WIFI_STA:
-        return wifi_sta_start(data->wifi_sta);
+        return wifi_sta_start(&data->wifi_sta);
     case CNET_APP_WIFI_SCAN:
         return CNET_ERR_NOT_IMPLEMENTED;
     case CNET_APP_HTTP_SERVER:
         return http_server_start();
     case CNET_APP_HTTP_REQUEST:
-        return http_request_start(data->http_request);
+    {
+        http_response_t resp;
+        http_request_start(&data->http_request);
+        return cnet_app_data_to_queue_result(&resp, http_request_get_resp, http_response_to_json);
+    }
     case CNET_APP_NTP:
-        return ntp_start(data->ntp);
+        return ntp_start(&data->ntp);
     case CNET_APP_MQTT:
-        return mqtt_start(data->mqtt);
+        return mqtt_start(&data->mqtt);
     case CNET_APP_PING:
         return CNET_ERR_NOT_IMPLEMENTED;
     case CNET_APP_OTA:
@@ -147,9 +149,9 @@ static int cnet_app_interface_start(cnet_app_interface_t interface, cnet_app_msg
     }
 }
 
-static int cnet_app_interface_stop(cnet_app_interface_t interface)
+static int cnet_app_channel_stop(cnet_app_channel_t channel)
 {
-    switch (interface)
+    switch (channel)
     {
     case CNET_APP_ETHERNET:
         return eth_stop();
@@ -176,24 +178,24 @@ static int cnet_app_interface_stop(cnet_app_interface_t interface)
     }
 }
 
-static int cnet_app_interface_get_info(cnet_app_interface_t interface)
+static int cnet_app_channel_get_info(cnet_app_channel_t channel)
 {
-    switch (interface)
+    switch (channel)
     {
     case CNET_APP_ETHERNET:
     {
         net_info_t net_info;
-        return cnet_app_interface_data_to_json(&net_info, eth_get_info, net_info_to_json);
+        return cnet_app_data_to_queue_result(&net_info, eth_get_info, net_info_to_json);
     }
     case CNET_APP_WIFI_AP:
     {
         net_info_t net_info;
-        return cnet_app_interface_data_to_json(&net_info, wifi_ap_get_info, net_info_to_json);
+        return cnet_app_data_to_queue_result(&net_info, wifi_ap_get_info, net_info_to_json);
     }
     case CNET_APP_WIFI_STA:
     {
         net_info_t net_info;
-        return cnet_app_interface_data_to_json(&net_info, wifi_sta_get_info, net_info_to_json);
+        return cnet_app_data_to_queue_result(&net_info, wifi_sta_get_info, net_info_to_json);
     }
     case CNET_APP_WIFI_SCAN:
         return CNET_ERR_NOT_IMPLEMENTED;
@@ -214,24 +216,24 @@ static int cnet_app_interface_get_info(cnet_app_interface_t interface)
     }
 }
 
-static int cnet_app_interface_get_status(cnet_app_interface_t interface)
+static int cnet_app_channel_get_status(cnet_app_channel_t channel)
 {
-    switch (interface)
+    switch (channel)
     {
     case CNET_APP_ETHERNET:
     {
         net_status_t net_status;
-        return cnet_app_interface_data_to_json(&net_status, eth_get_status, net_status_to_json);
+        return cnet_app_data_to_queue_result(&net_status, eth_get_status, net_status_to_json);
     }
     case CNET_APP_WIFI_AP:
     {
         net_status_t net_status;
-        return cnet_app_interface_data_to_json(&net_status, wifi_ap_get_status, net_status_to_json);
+        return cnet_app_data_to_queue_result(&net_status, wifi_ap_get_status, net_status_to_json);
     }
     case CNET_APP_WIFI_STA:
     {
         net_status_t net_status;
-        return cnet_app_interface_data_to_json(&net_status, wifi_sta_get_status, net_status_to_json);
+        return cnet_app_data_to_queue_result(&net_status, wifi_sta_get_status, net_status_to_json);
     }
     case CNET_APP_WIFI_SCAN:
         return CNET_ERR_NOT_IMPLEMENTED;
@@ -252,9 +254,9 @@ static int cnet_app_interface_get_status(cnet_app_interface_t interface)
     }
 }
 
-static int cnet_app_interface_data_to_json(void *data_buf, void *get_data_handler, void *to_json_handler);
+static int cnet_app_data_to_queue_result(void *data_buf, void *get_data_handler(void*), void *to_json_handler(void*))
 {
-    err = get_data_handler(data_buf);
+    int err = get_data_handler(data_buf);
     if(err != CNET_ERR_OK)
     {
         return err;
@@ -279,7 +281,7 @@ static int cnet_app_settings_save(void)
     FILE *fd = fopen(CNET_CONFIG_SETTINGS_FILENAME, "w");
     if(fd != NULL)
     {
-        fwrite(this.settings, sizeof(this.settings), 1, fd);
+        fwrite(&this.settings, sizeof(this.settings), 1, fd);
         fclose(fd);
         return CNET_ERR_OK;
     }
@@ -287,7 +289,7 @@ static int cnet_app_settings_save(void)
     {
         printf("Error opening the file %s for write:%s", CNET_CONFIG_SETTINGS_FILENAME, strerror(errno));
         fclose(fd);
-        return CNET_ER
+        return CNET_FAIL;
     }
 }
 
@@ -298,5 +300,6 @@ static int cnet_app_settings_load(void)
 
 EventBits_t cnet_app_set_msg_event_bit(cnet_app_msg_id_t msg_id)
 {
+    int tst = GET_EVT_BIT(4);
     xEventGroupSetBits(this.event_group, GET_EVT_BIT(msg_id));
 }

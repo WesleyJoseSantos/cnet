@@ -3,9 +3,23 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**",
-                "${workspaceFolder}/interfaces/**",
-                "${workspaceFolder}/interfaces/eth/include"
+                // "${config:idf.espIdfPath}/components/**",
+                // "${config:idf.espIdfPathWin}/components/**",
+                // "${config:idf.espAdfPath}/components/**",
+                // "${config:idf.espAdfPathWin}/components/**",
+                "${workspaceFolder}/include",
+                "${workspaceFolder}/interfaces/dto_helpers/include",
+                "${workspaceFolder}/interfaces/eth/include",
+                "${workspaceFolder}/interfaces/http_request/include",
+                "${workspaceFolder}/interfaces/http_server/include",
+                "${workspaceFolder}/interfaces/ip_cfg/include",
+                "${workspaceFolder}/interfaces/mqtt/include",
+                "${workspaceFolder}/interfaces/net/include",
+                "${workspaceFolder}/interfaces/ntp/include",
+                "${workspaceFolder}/interfaces/wifi/include",
+                "${workspaceFolder}/modules/cJSON",
+                "C:/src/FreeRTOSv202212.00/FreeRTOS/Source/portable/MSVC-MingW",
+                "C:/src/FreeRTOSv202212.00/FreeRTOS/Source/include"
             ],
             "defines": [
                 "_DEBUG",

@@ -24,6 +24,16 @@
         "cnet_error.h": "c",
         "cjson.h": "c",
         "cnet_event_interface.h": "c",
-        "stat.h": "c"
+        "stat.h": "c",
+        "net_status_dto.h": "c",
+        "eth_cfg.h": "c",
+        "esp_eth_mac.h": "c",
+        "stdbool.h": "c",
+        "sdkconfig.h": "c",
+        "net_info.h": "c",
+        "esp_netif.h": "c",
+        "net_info_dto.h": "c",
+        "xlocnum": "c",
+        "xutility": "c"
     }
 }
